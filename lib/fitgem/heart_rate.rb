@@ -4,47 +4,37 @@ module Fitgem
     #       Heart Rate Retrieval Methods
     # ==========================================
 
-    # Get heart rate log entries for the supplied date
-    #
+    # Heart Rate Intraday Time Series
+    # https://dev.fitbit.com/docs/heart-rate/#get-heart-rate-intraday-time-series
     # @param [DateTime, Date, String] date
     # @return [Hash] Hash containing an average of the days logs, and a
     #   list of all individual entries
-    def heart_rate_on_date(date)
-      get("/user/#{@user_id}/heart/date/#{format_date(date)}.json")
+    def heart_rate_intraday_time_series(date, options = {})
+      range = construct_heat_rate_date_range_fragment(options)
+      url = "/user/-/activities/heart/date/#{format_date(date)}#{range}.json"
+      get(url)
     end
 
-    # ==========================================
-    #        Heart Rate Logging Methods
-    # ==========================================
-
-    # Log heart rate information to fitbit
-    #
-    # @param [Hash] opts Heart rate data
-    # @option opts [String] :tracker Heart rate tracker name;
-    #   predefined or custom tracker name (matches tracker name on the website) (REQUIRED)
-    # @option opts [Integer, String] :heart_rate Heart rate measurement (REQUIRED)
-    # @option opts [DateTime, Date, String] :date Log entry date (REQUIRED)
-    # @option opts [DateTime, String] :time Time of the measurement; hours and minutes in the format HH:mm
-    #
-    # @return [Hash] Summary of logged information
-    def log_heart_rate(opts)
-      unless opts[:tracker] && opts[:heart_rate] && opts[:date]
-        raise Fitgem::InvalidArgumentError, "Must include :tracker, :heart_rate, and :date in order to lof heart rate data"
+    # https://api.fit
+    def construct_heat_rate_date_range_fragment(options)
+      range_str = []
+      if options[:end_date]
+        # /[end-date]/[detail-level].json
+        # /[end-date]/[detail-level]/time/[start-time]/[end-time].json
+        range_str << "/#{format_date(options:end_date)}"
+      else
+        # /1d/[detail-level].json
+        # /1d/[detail-level]/time/[start-time]/[end-time].json
+        range_str << '/1d'
       end
 
-      opts[:heartRate] = opts.delete :heart_rate
-      opts[:date] = format_date(opts[:date])
-      opts[:time] = format_time(opts[:time]) if opts[:time]
-      post("/user/#{@user_id}/heart.json", opts)
-    end
+      range_str << "/#{options[:detail_level]}" if options[:detail_level]
 
-    # Delete logged heart rate information
-    #
-    # @param [Integer, String] heart_rate_log_id The id of previously logged
-    #   heart rate data
-    # @return [Hash] Empty hash denotes success
-    def delete_heart_rate_log(heart_rate_log_id)
-      delete("/user/-/heart/#{heart_rate_log_id}.json")
+      if options[:start_time] && options[:end_time]
+        range_str << "/time/#{options[:start_time]}/#{options[:end_time]}"
+      end
+
+      range_str.join('')
     end
   end
 end
